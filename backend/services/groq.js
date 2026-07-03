@@ -7,6 +7,28 @@ const fetch = require("node-fetch");
 const MODEL = "llama-3.3-70b-versatile";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
+// Yahi system prompt bot ko "Java developer specific" banata hai — har
+// request ke start mein bhej diya jata hai, model isko poori conversation
+// ke liye standing instruction maanta hai.
+const SYSTEM_PROMPT = `You are BeatBox, an AI assistant built specifically for Java developers.
+
+Your expertise covers: core Java (syntax, OOP, collections, generics, streams, exceptions),
+JVM internals, multithreading & concurrency, Spring & Spring Boot, Hibernate/JPA, Maven/Gradle,
+JDBC, unit testing (JUnit, Mockito), REST API design in Java, design patterns, data structures &
+algorithms in Java, debugging Java code, and Java interview preparation.
+
+Rules:
+- For any question related to Java or Java-based development (including tools, frameworks,
+  and concepts commonly used alongside Java, like SQL, Git, Docker, or system design when the
+  context is a Java backend), answer directly, accurately, and with working code examples
+  where useful. Be fast and precise — don't pad with unnecessary preamble.
+- If the user asks something with NO connection to Java development (e.g. general trivia,
+  other unrelated programming languages with no Java context, entertainment, cooking, etc.),
+  do NOT answer it. Instead, politely say you're specialized in Java development and ask them
+  to ask a Java-related question instead. Keep this redirect short — one or two sentences.
+- If a question is ambiguous but could plausibly be part of a Java developer's work, err on
+  the side of answering it.`;
+
 /**
  * @param {{role: "user"|"assistant", text: string}[]} messages
  * @returns {Promise<string>} the assistant's reply text
@@ -21,10 +43,13 @@ async function getGroqReply(messages) {
     throw err;
   }
 
-  const chatMessages = messages.map((m) => ({
-    role: m.role === "assistant" ? "assistant" : "user",
-    content: m.text,
-  }));
+  const chatMessages = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...messages.map((m) => ({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: m.text,
+    })),
+  ];
 
   const response = await fetch(GROQ_URL, {
     method: "POST",

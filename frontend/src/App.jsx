@@ -5,7 +5,11 @@ import Messages from "./components/Messages.jsx";
 import Composer from "./components/Composer.jsx";
 import AuthScreen from "./components/AuthScreen.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
+import { isTextToSpeechSupported, speak, stopSpeaking } from "./voice.js";
+
+
 import { checkHealth, listChats, createChat, getChat, deleteChat as apiDeleteChat, sendMessage as apiSendMessage } from "./api.js";
+
 
 export default function App() {
 
@@ -17,10 +21,12 @@ export default function App() {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState(null);
-  const [keyStatus, setKeyStatus] = useState("checking");
+  //const [keyStatus, setKeyStatus] = useState("checking");
   //const [sidebarOpen, setSidebarOpen] = useState(false);
      // Open by default on desktop (wide screens), closed by default on mobile
 // (off-canvas drawer) — matches how Gemini/ChatGPT behave.
+const [keyStatus, setKeyStatus] = useState("checking");
+const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(isTextToSpeechSupported);
 const [sidebarOpen, setSidebarOpen] = useState(() =>
   typeof window !== "undefined" ? window.innerWidth > 720 : true
 );
@@ -112,8 +118,9 @@ function startNewChat() {
 
     try {
       const { reply } = await apiSendMessage(chatId, text);
-      setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
-      refreshChatList();
+       setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
+        if (voiceReplyEnabled) speak(reply);
+           refreshChatList(); 
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -122,6 +129,7 @@ function startNewChat() {
   }
 
   async function handleLogout() {
+     stopSpeaking();
     await logout();
     // Clear local chat state so nothing from this session lingers on screen
     // (and so the next user who logs in on this device doesn't see it).
@@ -189,6 +197,30 @@ function startNewChat() {
             </svg>
             <span className="brand-name">BeatBox</span>
           </div>
+              {isTextToSpeechSupported && (
+            <button
+              type="button"
+              className={`icon-btn voice-toggle ${voiceReplyEnabled ? "on" : ""}`}
+              onClick={() => {
+                if (voiceReplyEnabled) stopSpeaking();
+                setVoiceReplyEnabled((v) => !v);
+              }}
+              title={voiceReplyEnabled ? "Voice replies on — click to mute" : "Voice replies off — click to unmute"}
+              aria-label="Toggle voice replies"
+            >
+              {voiceReplyEnabled ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+                  <path d="M16.5 8.5a5 5 0 010 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+                  <path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              )}
+            </button>
+          )}
         </header>
 
         <section className="chat-scroll">
